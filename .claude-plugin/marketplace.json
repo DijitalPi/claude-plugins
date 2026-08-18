@@ -1,0 +1,44 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dijitalpi",
+  "description": "Small, single-purpose Claude Code plugins. Each one does one thing, ships as a single dependency-free file, and fails open.",
+  "owner": {
+    "name": "DijitalPi",
+    "url": "https://dijitalpi.com"
+  },
+  "plugins": [
+    {
+      "name": "context-guard",
+      "description": "Warns before the context window fills up, while there is still room to save your work and start clean. Optional statusline badge and a /wrap-up command.",
+      "source": "./plugins/context-guard",
+      "category": "productivity"
+    },
+    {
+      "name": "install-guard",
+      "description": "Checks packages against their registry before installing. Blocks names that do not exist — the ones models invent and attackers register — and asks about packages that are brand new or barely downloaded.",
+      "source": "./plugins/install-guard",
+      "category": "security"
+    },
+    {
+      "name": "secret-guard",
+      "description": "Blocks writes containing a live credential — AWS keys, GitHub tokens, private keys, provider API keys. Leaves .env files alone.",
+      "source": "./plugins/secret-guard",
+      "category": "security"
+    },
+    {
+      "name": "scope-guard",
+      "description": "Catches writes that land outside the project you are working in — the failure mode of having several repos open at once.",
+      "source": "./plugins/scope-guard",
+      "category": "safety"
+    },
+    {
+      "name": "explain-simply",
+      "description": "Appends a short, jargon-free summary to long answers, so non-experts can follow along. Always-on via hook, plus an on-demand /simply command.",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/DijitalPi/claude-explain-simply.git"
+      },
+      "category": "productivity"
+    }
+  ]
+}

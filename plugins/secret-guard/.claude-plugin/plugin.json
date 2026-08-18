@@ -1,0 +1,32 @@
+{
+  "name": "secret-guard",
+  "description": "Blocks writes that contain a live credential — AWS keys, GitHub tokens, private keys, provider API keys. Leaves .env files alone, because that is where a key is supposed to go.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DijitalPi",
+    "url": "https://dijitalpi.com"
+  },
+  "homepage": "https://github.com/DijitalPi/claude-plugins/tree/main/plugins/secret-guard",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "secrets",
+    "credentials",
+    "api-keys",
+    "leak-prevention"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/secret-guard.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

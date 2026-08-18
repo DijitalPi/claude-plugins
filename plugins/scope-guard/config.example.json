@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "outsideProject": "ask",
+  "allowPaths": ["~/.claude", "/tmp", "/private/tmp", "/var/folders"],
+  "extraRoots": []
+}

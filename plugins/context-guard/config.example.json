@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "threshold": 80,
+  "contextLimit": 200000,
+  "saveCommand": "",
+  "extraInstructions": "",
+  "showSystemMessage": true,
+  "repeatEvery": 1
+}

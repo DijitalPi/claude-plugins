@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "minAgeDays": 90,
+  "minWeeklyDownloads": 1000,
+  "blockUnknown": true,
+  "timeoutMs": 3000,
+  "allowlist": []
+}

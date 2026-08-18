@@ -1,0 +1,33 @@
+{
+  "name": "install-guard",
+  "description": "Checks packages against their registry before installing. Blocks names that do not exist — the ones models invent and attackers register — and asks about packages that are brand new or barely downloaded.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DijitalPi",
+    "url": "https://dijitalpi.com"
+  },
+  "homepage": "https://github.com/DijitalPi/claude-plugins/tree/main/plugins/install-guard",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "supply-chain",
+    "npm",
+    "pypi",
+    "slopsquatting",
+    "hallucination"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/install-guard.js\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

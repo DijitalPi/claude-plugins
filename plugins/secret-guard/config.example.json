@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "allowFiles": [".env", ".env.local", ".env.production"],
+  "extraPatterns": [],
+  "disablePatterns": []
+}
