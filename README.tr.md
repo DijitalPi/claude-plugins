@@ -1,5 +1,6 @@
 # Claude Code için DijitalPi eklentileri
 
+[![CI](https://github.com/DijitalPi/claude-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/DijitalPi/claude-plugins/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Claude Code plugins](https://img.shields.io/badge/Claude%20Code-marketplace-8A63D2)](https://claude.com/claude-code)
 
@@ -80,6 +81,29 @@ Bilinçli olarak aynı kararlar:
   ezer; böylece bir repo kuralları kendisi için sıkabilir ya da gevşetebilir.
 - **Varsayılan sessizlik.** Söyleyecek bir şeyi yoksa hiçbir şey söylemez ve
   token harcamaz.
+
+---
+
+## Testler
+
+```bash
+node --test test/*.test.js
+```
+
+Burada da kurulacak bir şey yok — eklentiler Node'un yerleşik modüllerini
+kullanıyor, testler de Node'un yerleşik test runner'ını. Runner için Node 18+
+gerekiyor; eklentilerin kendisi hâlâ Node 14+ ile çalışıyor.
+
+Her koruma, Claude Code'un çalıştırdığı şekilde ayrı bir process olarak test
+ediliyor: JSON girer, JSON ya da sessizlik çıkar. Her test kendi geçici `HOME` ve
+`TMPDIR` klasörünü alıyor, yani testler senin ayarlarını değil kendi ayarlarını
+okuyor; install-guard'ın registry cevapları da cache'e önceden yazıldığı için
+testler internete hiç çıkmıyor.
+
+Asıl garanti altına alınan üç şey: söyleyecek bir şeyi olmayan koruma susuyor,
+hiçbiri "izin ver" cevabı vermiyor ve bozuk config ya da anlamsız girdide hepsi
+yoldan çekiliyor. Bu repo'nun verdiği söz bunlar olduğu için test edilmeye değer
+olanlar da bunlar.
 
 ---
 

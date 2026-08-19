@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: ['18.x', '20.x', '22.x', '24.x']
+        include:
+          - os: macos-latest
+            node: '22.x'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # No install step, on purpose: the guards and the suite that exercises
+      # them both use Node built-ins only. If this workflow ever needs `npm ci`,
+      # something has drifted from the promise on the tin.
+      - name: Test
+        run: node --test test/*.test.js

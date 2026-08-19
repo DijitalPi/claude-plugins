@@ -1,5 +1,6 @@
 # DijitalPi plugins for Claude Code
 
+[![CI](https://github.com/DijitalPi/claude-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/DijitalPi/claude-plugins/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Claude Code plugins](https://img.shields.io/badge/Claude%20Code-marketplace-8A63D2)](https://claude.com/claude-code)
 
@@ -81,6 +82,28 @@ Same decisions across all of them, on purpose:
   `~/.claude`, so a repo can tighten or loosen the rules for itself.
 - **Quiet by default.** If a plugin has nothing to say, it says nothing and
   costs no tokens.
+
+---
+
+## Tests
+
+```bash
+node --test test/*.test.js
+```
+
+Nothing to install here either — the suite uses Node's built-in test runner the
+same way the guards use Node's built-in modules. The runner needs Node 18+; the
+guards themselves still run on Node 14+.
+
+Each guard is exercised as a subprocess, exactly the way Claude Code runs it:
+JSON in, JSON or silence out. Every test gets a throwaway `HOME` and `TMPDIR`, so
+the suite reads its own config instead of yours, and install-guard's registry
+answers are seeded into its cache, so the tests never reach the network.
+
+What actually gets pinned down: that a guard stays silent when it has nothing to
+say, that none of them ever answers `allow`, and that all of them fail open on a
+broken config or unparsable input. Those are the three promises this repository
+makes, so those are the ones worth a test.
 
 ---
 
