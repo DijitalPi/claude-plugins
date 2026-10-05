@@ -21,6 +21,7 @@ Sonra istediğini kur:
 /plugin install secret-guard@dijitalpi
 /plugin install scope-guard@dijitalpi
 /plugin install explain-simply@dijitalpi
+/plugin install agent-orchestra@dijitalpi
 ```
 
 Sonrasında Claude Code'u yeniden başlat. Buradaki her şey için `PATH`'inde
@@ -61,6 +62,13 @@ ister. Varsayılan sormak, istersen engeller.
 
 Uzun cevapların sonuna kısa, jargonsuz bir özet ekler — kodu yazmayanlar için.
 Kendi repo'sunda duruyor, buradan kurulabiliyor.
+
+### [agent-orchestra](plugins/agent-orchestra): canlı bir orkestrada çal
+
+Sadece eğlence için olanı. Oturumlarını [orchestra.dijitalpi.com](https://orchestra.dijitalpi.com)
+sahnesine çıkarır: kodlama ajanı çalıştıran her bilgisayarın ülke bayrağıyla bir müzisyen olduğu
+canlı bir orkestra. Sadece adım sayısı gönderir, asla kod ya da prompt göndermez; hook çağrısı
+yerel bir dosyaya tek satır ekler, Claude hiç yavaşlamaz.
 
 ---
 

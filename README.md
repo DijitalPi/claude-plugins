@@ -21,6 +21,7 @@ Then install whichever you want:
 /plugin install secret-guard@dijitalpi
 /plugin install scope-guard@dijitalpi
 /plugin install explain-simply@dijitalpi
+/plugin install agent-orchestra@dijitalpi
 ```
 
 Restart Claude Code afterwards. Everything here needs Node 14+ on your `PATH`
@@ -62,6 +63,13 @@ confirmation naming both paths. Asks by default, blocks if you tell it to.
 
 Appends a short, jargon-free summary to long answers, for the people who didn't
 write the code. Lives in its own repository; installable from here.
+
+### [agent-orchestra](plugins/agent-orchestra): play in a live orchestra
+
+The one that is just for fun. Puts your sessions on stage at
+[orchestra.dijitalpi.com](https://orchestra.dijitalpi.com), a live orchestra where every machine
+running coding agents is a musician with its country's flag. Sends step counts only, never code
+or prompts; a hook call only appends a line to a local file, so Claude is never slowed down.
 
 ---
 

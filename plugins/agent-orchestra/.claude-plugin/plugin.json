@@ -1,0 +1,33 @@
+{
+  "name": "agent-orchestra",
+  "description": "Puts your Claude Code sessions on stage in the Agent Orchestra: a live orchestra where every machine running coding agents is a musician. Sends step counts only, never code or prompts.",
+  "version": "0.1.0",
+  "author": {
+    "name": "DijitalPi",
+    "url": "https://dijitalpi.com"
+  },
+  "homepage": "https://github.com/DijitalPi/claude-plugins/tree/main/plugins/agent-orchestra",
+  "license": "MIT",
+  "keywords": [
+    "music",
+    "orchestra",
+    "sonification",
+    "community",
+    "fun",
+    "agents"
+  ],
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-orchestra.js\"", "timeout": 5 }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-orchestra.js\"", "timeout": 5 }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-orchestra.js\"", "timeout": 5 }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-orchestra.js\"", "timeout": 5 }] }
+    ]
+  }
+}

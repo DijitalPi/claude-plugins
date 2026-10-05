@@ -39,6 +39,12 @@
         "url": "https://github.com/DijitalPi/claude-explain-simply.git"
       },
       "category": "productivity"
+    },
+    {
+      "name": "agent-orchestra",
+      "description": "Puts your Claude Code sessions on stage in a live, shared orchestra. Every machine is a musician that plays when its agents work. Sends step counts only, never code or prompts.",
+      "source": "./plugins/agent-orchestra",
+      "category": "fun"
     }
   ]
 }
