@@ -1,7 +1,7 @@
 {
   "name": "context-guard",
   "description": "Warns you before the context window fills up, while there is still room to save your work and start a clean session. Optional statusline badge and a /wrap-up command.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "DijitalPi",
     "url": "https://dijitalpi.com"

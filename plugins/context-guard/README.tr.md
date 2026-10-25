@@ -158,6 +158,48 @@ proje kökünde `.context-guard.json`. Proje ayarı üstün gelir.
 
 ---
 
+## İsteğe bağlı: dolu pencerede yeni işi fark et (`topicShift`)
+
+Her tur bütün konuşmayı yeniden okur; uzun bir oturum ilgisiz bir işe geçince eski
+işin bedelini ödemeye devam eder. `topicShift` açıkken, zaten dolu bir pencerede
+(`minPercent`, varsayılan %15) her mesaja bakılır: önceki konuşmaya hiç ihtiyacı
+olmayan yeni bir iş mi başlatıyor? Öyleyse Claude `saveCommand`'ı çalıştırıp temiz
+bir konuşmada devam etmeyi önerir ve bir şey yapmadan önce sorar.
+
+Kararı bir [TypeSafe](https://typesafe.ai) System One modeli (Jev) verir: son üç
+mesajın, son cevap ve yeni mesaj üzerine tek bir evet/hayır sorusu. Olasılık döndürür,
+metin üretmez, Claude token'ı harcamaz. TypeSafe API anahtarı ister ve bu mesajları
+TypeSafe'e gönderir; bu yüzden siz açmadıkça kapalıdır.
+
+```json
+{
+  "saveCommand": "/save",
+  "topicShift": {
+    "enabled": true,
+    "apiKeyFile": "~/.config/typesafe.env"
+  }
+}
+```
+
+| Anahtar | Varsayılan | Ne yapar |
+| --- | --- | --- |
+| `enabled` | `false` | Denetimi açar. |
+| `minPercent` | `15` | Pencere bu kadar dolmadan bakmaz; altında temiz başlangıç az kazandırır. |
+| `probability` | `0.8` | "Yeni iş" demek için Jev'in gereken evet olasılığı. |
+| `cooldown` | `5` | Bir öneriden sonra kaç mesaj susar (Jev de çağrılmaz). |
+| `minPromptChars` | `15` | Daha kısa mesajlara ("tamam", "devam", "3") ve slash komutlarına bakılmaz. |
+| `apiKeyEnv` | `TYPESAFE_API_KEY` | Anahtarı tutan ortam değişkeni. |
+| `apiKeyFile` | `""` | Ya da bu değişkeni içeren env biçimli dosya. |
+| `model` | `jev-1.13.0` | Sabit sürüm; ayarladığın eşik sessizce kaymasın. |
+| `timeoutMs` | `2500` | Mesaj bundan uzun beklemez; süre dolarsa susar. |
+
+Her karar yalnız sayı olarak (zaman, oturum, %, olasılık, öneri yapıldı mı; mesaj
+metni yok) `$TMPDIR/claude-context-guard/topic-shift.log` dosyasına yazılır;
+`probability`'yi kendi oturumlarınla ayarlayabilirsin. Ana `threshold` aşılınca
+normal uyarı devreye girer ve Jev'e sorulmaz.
+
+---
+
 ## Ne zaman kendini sıfırlar
 
 Temizledikten (ya da Claude Code sıkıştırdıktan) sonra kullanım eşiğin altına
