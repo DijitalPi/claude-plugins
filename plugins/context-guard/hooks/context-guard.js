@@ -44,6 +44,28 @@ const DEFAULTS = {
   showSystemMessage: true,
   // Warn again every N prompts once over threshold. 0 = only the short nudge.
   repeatEvery: 1,
+  // Optional: notice when a prompt starts a new, unrelated task in an already
+  // heavy window, and suggest saving and starting fresh. Every turn re-reads the
+  // whole conversation, so a new task is cheapest in a new conversation. The
+  // judgment comes from a TypeSafe System One model (Jev): one yes/no question,
+  // no text generated. Off unless enabled and given an API key.
+  topicShift: {
+    enabled: false,
+    // Only judge once the window is this full; below it a fresh start saves little.
+    minPercent: 15,
+    // Jev's yes-probability needed to call the prompt a new task.
+    probability: 0.8,
+    // Prompts to stay quiet after a suggestion (the suggestion itself counts as 1).
+    cooldown: 5,
+    // Prompts shorter than this ("ok", "go on", "3") are never judged.
+    minPromptChars: 15,
+    model: 'jev-1.13.0',
+    apiKeyEnv: 'TYPESAFE_API_KEY',
+    // Optional env-style file holding the key, e.g. "~/.config/typesafe.env".
+    apiKeyFile: '',
+    timeoutMs: 2500,
+    endpoint: 'https://api.typesafe.ai/v1/systemone',
+  },
 };
 
 function readJson(file) {
@@ -63,7 +85,10 @@ function loadConfig(cwd) {
 
   for (const file of candidates) {
     const found = readJson(file);
-    if (found) return { ...DEFAULTS, ...found };
+    if (found) {
+      const topicShift = { ...DEFAULTS.topicShift, ...(found.topicShift || {}) };
+      return { ...DEFAULTS, ...found, topicShift };
+    }
   }
   return { ...DEFAULTS };
 }
@@ -122,6 +147,218 @@ function percentFromTranscript(transcriptPath, limit) {
   }
 }
 
+/* ------------------------------------------------------------ topicShift */
+
+function readTail(file, bytes) {
+  const { size } = fs.statSync(file);
+  const window = Math.min(size, bytes);
+  const fd = fs.openSync(file, 'r');
+  const buf = Buffer.alloc(window);
+  fs.readSync(fd, buf, 0, window, size - window);
+  fs.closeSync(fd);
+  return buf.toString('utf8');
+}
+
+/** Text the user actually typed: not tool results, skill bodies or <command> wrappers. */
+function typedText(entry) {
+  if (!entry || entry.type !== 'user' || entry.isMeta) return null;
+  const c = entry.message && entry.message.content;
+  let text = null;
+  if (typeof c === 'string') text = c;
+  else if (Array.isArray(c)) {
+    if (c.some((b) => b && b.type === 'tool_result')) return null;
+    text = c
+      .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
+      .map((b) => b.text)
+      .join('\n');
+  }
+  text = text ? text.trim() : '';
+  if (!text || text.startsWith('<')) return null;
+  return text;
+}
+
+function assistantText(entry) {
+  if (!entry || entry.type !== 'assistant') return null;
+  const c = entry.message && entry.message.content;
+  if (!Array.isArray(c)) return null;
+  const text = c
+    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text)
+    .join('\n')
+    .trim();
+  return text || null;
+}
+
+/** The last few typed prompts (oldest first) and the last assistant reply. */
+function conversationTail(transcriptPath, currentPrompt, keep = 3) {
+  try {
+    if (!transcriptPath) return null;
+    const lines = readTail(transcriptPath, 512 * 1024).split('\n');
+    const previous = [];
+    let lastReply = null;
+    for (let i = lines.length - 1; i >= 0 && previous.length < keep; i--) {
+      const line = lines[i].trim();
+      if (!line.startsWith('{')) continue;
+      let entry;
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (lastReply === null) lastReply = assistantText(entry);
+      const typed = typedText(entry);
+      if (typed && typed !== currentPrompt) previous.unshift(typed.slice(0, 600));
+    }
+    return { previous, lastReply: lastReply ? lastReply.slice(0, 800) : null };
+  } catch {
+    return null;
+  }
+}
+
+function readApiKey(ts) {
+  const name = String(ts.apiKeyEnv || 'TYPESAFE_API_KEY');
+  if (process.env[name]) return process.env[name];
+  const file = String(ts.apiKeyFile || '').replace(/^~(?=$|\/)/, os.homedir());
+  if (!file) return null;
+  try {
+    for (const raw of fs.readFileSync(file, 'utf8').split('\n')) {
+      const m = raw.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (m && m[1] === name) return m[2].replace(/^(['"])(.*)\1$/, '$2') || null;
+    }
+  } catch {
+    /* no key file, no judgment */
+  }
+  return null;
+}
+
+// Measured on 99 real prompt transitions (65 follow-ups, 34 new tasks), jev-1.13.0:
+// at probability 0.8 it caught 44% of new tasks with no false suggestion; at 0.7,
+// 56% with one. An earlier wording that counted "refers back to earlier work" as a
+// follow-up missed questions about work from other sessions ("did we ship X?").
+const NEW_TASK_QUESTION = {
+  type: 'noul',
+  instructions:
+    'Is `new_message` about a different subject than the work discussed in `previous_user_messages` and `last_assistant_reply`, so that it could be handled in a brand-new conversation without needing anything said here?',
+  criteria: {
+    true: 'A different project, client, product, file or topic, including a question about other or earlier work that was not discussed here.',
+    false:
+      'The same subject: a continuation, follow-up, correction, approval, a question about what was just discussed, or the next step of the same work.',
+  },
+};
+
+/** Jev's probability that the prompt starts a new task, or null on any failure. */
+async function askJev(ts, key, state) {
+  try {
+    const res = await fetch(String(ts.endpoint), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: ts.model, state, questions: { new_task: NEW_TASK_QUESTION } }),
+      signal: AbortSignal.timeout(Number(ts.timeoutMs) > 0 ? Number(ts.timeoutMs) : 2500),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const p = json && json.answers && json.answers.new_task && json.answers.new_task.noul;
+    return typeof p === 'number' && p >= 0 && p <= 1 ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildTopicShift(pct, cfg) {
+  const save = String(cfg.saveCommand || '').trim();
+  const how = save
+    ? `suggest running ${save} and continuing this new task in a fresh conversation`
+    : 'suggest continuing this new task in a fresh conversation';
+  return [
+    '<context-guard>',
+    `The user's new message looks like a new task, unrelated to this conversation, and the context window is already ${pct}% full. Every turn re-reads the whole conversation, so a new task is cheaper in a fresh one.`,
+    `Before starting it, in one short line, ${how}, and ask whether to do that or continue here. If the user has already said to continue here, just do the task.`,
+    '</context-guard>',
+  ].join('\n');
+}
+
+/**
+ * Below the threshold: if the window is heavy and this prompt starts a new task,
+ * return the suggestion payload. Returns null when there is nothing to say.
+ */
+async function topicShiftPayload(input, cfg, pct, dir) {
+  const ts = cfg.topicShift || {};
+  if (!ts.enabled) return null;
+
+  const stateFile = path.join(dir, `${String(input.session_id).replace(/[^\w.-]/g, '_')}.shift`);
+  const minPercent = Number(ts.minPercent) >= 0 ? Number(ts.minPercent) : 15;
+  if (pct < minPercent) {
+    // A small window, or a clear just happened: start over.
+    try {
+      fs.unlinkSync(stateFile);
+    } catch {
+      /* nothing to reset */
+    }
+    return null;
+  }
+
+  const state = readJson(stateFile);
+  if (state && state.quiet > 0) {
+    try {
+      fs.writeFileSync(stateFile, JSON.stringify({ quiet: state.quiet - 1 }));
+    } catch {
+      /* cooldown is a nicety */
+    }
+    return null;
+  }
+
+  const prompt = String(input.prompt || '').trim();
+  const minChars = Number(ts.minPromptChars) >= 0 ? Number(ts.minPromptChars) : 15;
+  if (!prompt || prompt.startsWith('/') || prompt.length < minChars) return null;
+
+  const key = readApiKey(ts);
+  if (!key) return null;
+
+  const tail = conversationTail(input.transcript_path, prompt);
+  if (!tail || tail.previous.length === 0) return null;
+
+  const p = await askJev(ts, key, {
+    previous_user_messages: tail.previous,
+    last_assistant_reply: tail.lastReply || '',
+    new_message: prompt.slice(0, 1500),
+  });
+  const needed = Number(ts.probability) > 0 ? Number(ts.probability) : 0.8;
+  const fired = p !== null && p >= needed;
+
+  try {
+    // Numbers only, no prompt text: enough to tune `probability` later.
+    fs.appendFileSync(
+      path.join(dir, 'topic-shift.log'),
+      `${new Date().toISOString()}\t${input.session_id}\t${pct}\t${p === null ? 'error' : p}\t${fired ? 'fired' : 'quiet'}\n`
+    );
+  } catch {
+    /* logging is a nicety */
+  }
+  if (!fired) return null;
+
+  const cooldown = Number(ts.cooldown) > 1 ? Math.floor(Number(ts.cooldown)) : 1;
+  try {
+    fs.writeFileSync(stateFile, JSON.stringify({ quiet: cooldown - 1 }));
+  } catch {
+    /* cooldown is a nicety */
+  }
+
+  const payload = {
+    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: buildTopicShift(pct, cfg) },
+  };
+  if (cfg.showSystemMessage) {
+    payload.systemMessage = `🧭 New task? Context is ${pct}% full — saving and starting a fresh conversation is cheaper.`;
+  }
+  return payload;
+}
+
+/** Write and exit only after the pipe has taken the bytes. */
+function emit(payload) {
+  process.stdout.write(JSON.stringify(payload), () => process.exit(0));
+}
+
+/* --------------------------------------------------------------- warning */
+
 function buildWarning(pct, cfg, isFirst) {
   const save = String(cfg.saveCommand || '').trim();
   const extra = String(cfg.extraInstructions || '').trim();
@@ -165,7 +402,7 @@ function buildWarning(pct, cfg, isFirst) {
   return lines.join('\n');
 }
 
-function main() {
+async function main() {
   let input = {};
   try {
     input = JSON.parse(fs.readFileSync(0, 'utf8')) || {};
@@ -204,6 +441,8 @@ function main() {
     } catch {
       /* nothing to reset */
     }
+    const shift = await topicShiftPayload(input, cfg, pct, dir);
+    if (shift) return emit(shift);
     process.exit(0);
   }
 
@@ -235,12 +474,7 @@ function main() {
     payload.systemMessage = `⚠️  Context ${pct}% full — wrapping up${save ? ` (${save} will run)` : ''}, then clear the conversation.`;
   }
 
-  process.stdout.write(JSON.stringify(payload));
-  process.exit(0);
+  emit(payload);
 }
 
-try {
-  main();
-} catch {
-  process.exit(0);
-}
+main().catch(() => process.exit(0));

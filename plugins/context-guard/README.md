@@ -171,6 +171,50 @@ A worked example — 1M model, a save command, and an extra step:
 
 ---
 
+## Optional: notice a new task in a heavy window (`topicShift`)
+
+Every turn re-reads the whole conversation, so a long session that moves on to
+an unrelated task keeps paying for the old one. With `topicShift` on, each prompt
+in an already heavy window (`minPercent`, default 15%) is checked: does it start
+a new task that needs none of the earlier conversation? If so, Claude suggests
+running your `saveCommand` and continuing in a fresh conversation, and asks
+before doing anything.
+
+The judgment comes from a [TypeSafe](https://typesafe.ai) System One model (Jev):
+one yes/no question over your last three prompts, the last reply and the new
+prompt. It returns a probability, generates no text, and costs no Claude tokens.
+It needs a TypeSafe API key and sends those messages to TypeSafe, so it is off
+unless you turn it on.
+
+```json
+{
+  "saveCommand": "/save",
+  "topicShift": {
+    "enabled": true,
+    "apiKeyFile": "~/.config/typesafe.env"
+  }
+}
+```
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `enabled` | `false` | Turn the check on. |
+| `minPercent` | `15` | Only judge once the window is this full; below it a fresh start saves little. |
+| `probability` | `0.8` | Jev's yes-probability needed to call it a new task. |
+| `cooldown` | `5` | Prompts to stay quiet after a suggestion (no Jev calls either). |
+| `minPromptChars` | `15` | Shorter prompts ("ok", "go on", "3") and slash commands are never judged. |
+| `apiKeyEnv` | `TYPESAFE_API_KEY` | Environment variable holding the key. |
+| `apiKeyFile` | `""` | Or an env-style file with that variable in it. |
+| `model` | `jev-1.13.0` | A pinned version, so the threshold you tuned does not drift. |
+| `timeoutMs` | `2500` | The prompt never waits longer than this; on timeout it stays quiet. |
+
+Every decision is logged as numbers only (time, session, %, probability,
+fired or not; no prompt text) to `$TMPDIR/claude-context-guard/topic-shift.log`,
+so you can tune `probability` on your own sessions. Over the main `threshold`,
+the regular warning takes over and Jev is not asked.
+
+---
+
 ## When it re-arms
 
 Once you clear (or Claude Code compacts), usage drops below the threshold, and

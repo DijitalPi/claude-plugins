@@ -5,5 +5,12 @@
   "saveCommand": "",
   "extraInstructions": "",
   "showSystemMessage": true,
-  "repeatEvery": 1
+  "repeatEvery": 1,
+  "topicShift": {
+    "enabled": false,
+    "minPercent": 15,
+    "probability": 0.8,
+    "cooldown": 5,
+    "apiKeyFile": ""
+  }
 }
